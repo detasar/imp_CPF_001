@@ -10,14 +10,23 @@ interpretations of the resulting fairness and performance metrics.
 ## Repository structure
 imp_CPF_001/
 ├── data/ # place raw CSV/ASC dataset files here
+
 ├── results/ # experimental summaries for each dataset
+
 ├── src/ # Python code for experiments and utilities
+
 │ ├── common.py # fairness metrics and conformal prediction helpers
+
 │ ├── bank_churn_experiment.py
+
 │ ├── south_german_experiment.py
+
 │ ├── south_german_oversampled_experiment.py
+
 │ ├── bank_marketing_experiment.py
+
 │ └── german_credit_experiment.py
+
 └── README.md # this file
 
 
