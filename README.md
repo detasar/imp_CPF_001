@@ -8,7 +8,9 @@ presented in the empirical section of the paper, along with brief
 interpretations of the resulting fairness and performance metrics.
 
 ## Repository structure
+
 imp_CPF_001/
+
 ├── data/ # place raw CSV/ASC dataset files here
 
 ├── results/ # experimental summaries for each dataset
