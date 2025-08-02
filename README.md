@@ -2,7 +2,7 @@
 # Fairness‐Aware Conformal Prediction Experiments
 
 This repository accompanies the experiments described in the paper
-*Enhancing Fairness in AI Systems for Banking Applications: A Conformal
+*Enhancing Fairness in Artificial Intelligence Systems for Banking Applications: A Conformal
 Prediction Perspective*.  It contains code to reproduce the analysis
 presented in the empirical section of the paper, along with brief
 interpretations of the resulting fairness and performance metrics.
