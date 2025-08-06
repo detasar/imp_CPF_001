@@ -86,7 +86,7 @@ def nonconformity_binary(proba_pos: np.ndarray, y_true: np.ndarray, *, variant: 
     if variant == "plain":
         alpha = 1.0 - p_y
     elif variant == "normalized":
-        denom = np.sqrt(p1 * (1 - p1))
+        denom = np.sqrt(p_y * (1 - p_y))
         denom = np.where(denom < 1e-6, 1e-6, denom)
         alpha = (1.0 - p_y) / denom
     else:
