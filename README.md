@@ -29,6 +29,14 @@ imp_CPF_001/
 
 │ └── german_credit_experiment.py
 
+├── test_basic.py # basic tests to validate code functionality
+
+├── check_code_quality.py # code quality checker
+
+├── requirements.txt # Python dependencies
+
+├── .gitignore # Git ignore rules
+
 └── README.md # this file
 
 
@@ -51,6 +59,28 @@ version of the training set on the fly, so no additional data file is
 needed.  The Bank Marketing dataset uses a semicolon (`;`) as the
 separator; please download the `bank-full.csv` file (from inside
 `bank.zip`) and place it in the `data/` folder.
+
+## Setup
+
+To install the required dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+To run basic tests to verify the setup:
+
+```bash
+python test_basic.py
+```
+
+To check code quality:
+
+```bash
+python check_code_quality.py
+```
+
+## Running Experiments
 
 Once the datasets are in place, you can run any experiment with:
 
