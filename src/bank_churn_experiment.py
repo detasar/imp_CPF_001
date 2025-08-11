@@ -18,12 +18,14 @@ The dataset file `bank_customer_churn.csv` should be placed in the
 import os
 import numpy as np
 import pandas as pd
+from typing import Tuple
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from common import (
+    check_data_file,
     demographic_parity_diff,
     equalized_odds_gaps,
     equal_opportunity_gap,
@@ -37,6 +39,7 @@ from common import (
 
 
 def load_data(path: str) -> pd.DataFrame:
+    check_data_file(path, "Bank Customer Churn dataset")
     df = pd.read_csv(path)
     return df
 

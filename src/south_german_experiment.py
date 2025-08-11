@@ -62,7 +62,7 @@ def load_data(path: str) -> pd.DataFrame:
         "gastarb",
         "kredit",
     ]
-    df = pd.read_csv(path, sep="\s+", header=None, names=columns)
+    df = pd.read_csv(path, sep=r"\s+", header=None, names=columns)
     return df
 
 

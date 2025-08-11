@@ -18,6 +18,7 @@ The dataset file `south_german_credit.asc` should be placed in the
 import os
 import numpy as np
 import pandas as pd
+from typing import Tuple
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
@@ -61,7 +62,7 @@ def load_data(path: str) -> pd.DataFrame:
         "gastarb",
         "kredit",
     ]
-    df = pd.read_csv(path, sep="\s+", header=None, names=columns)
+    df = pd.read_csv(path, sep=r"\s+", header=None, names=columns)
     return df
 
 
@@ -89,7 +90,7 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     return df_processed
 
 
-def oversample_training(X: np.ndarray, y: np.ndarray, S: np.ndarray) -> tuple:
+def oversample_training(X: np.ndarray, y: np.ndarray, S: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Randomly oversample the minority class in (X, y, S)."""
     # Identify majority and minority classes based on counts
     counts = np.bincount(y)

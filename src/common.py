@@ -8,8 +8,32 @@ of split (marginal) and group-conditional (Mondrian) conformal
 prediction for binary classification.
 """
 
+import os
 import numpy as np
 from typing import Dict, Tuple, List
+
+
+def check_data_file(file_path: str, file_description: str = "Dataset file") -> None:
+    """Check if a data file exists and provide helpful error message if not.
+    
+    Parameters
+    ----------
+    file_path : str
+        Path to the data file to check
+    file_description : str
+        Human-readable description of the file for error messages
+        
+    Raises
+    ------
+    FileNotFoundError
+        If the file does not exist, with instructions on how to obtain it
+    """
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(
+            f"{file_description} not found at {file_path}. "
+            f"Please download the dataset and place it in the data/ directory. "
+            f"See the README.md file for download instructions."
+        )
 
 
 def demographic_parity_diff(y_pred: np.ndarray, S: np.ndarray) -> Tuple[float, float, float]:
