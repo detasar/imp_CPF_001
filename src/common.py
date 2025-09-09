@@ -8,8 +8,32 @@ of split (marginal) and group-conditional (Mondrian) conformal
 prediction for binary classification.
 """
 
+import os
 import numpy as np
 from typing import Dict, Tuple, List
+
+
+def check_data_file(file_path: str, file_description: str = "Dataset file") -> None:
+    """Check if a data file exists and provide helpful error message if not.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the data file to check
+    file_description : str
+        Human-readable description of the file for error messages
+
+    Raises
+    ------
+    FileNotFoundError
+        If the file does not exist, with instructions on how to obtain it
+    """
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(
+            f"{file_description} not found at {file_path}. "
+            f"Please download the dataset and place it in the data/ directory. "
+            f"See the README.md file for download instructions."
+        )
 
 
 def demographic_parity_diff(y_pred: np.ndarray, S: np.ndarray) -> Tuple[float, float, float]:
@@ -39,7 +63,9 @@ def _rates(y_true: np.ndarray, y_pred: np.ndarray) -> Tuple[float, float, float]
     return tpr, fpr, fnr
 
 
-def equalized_odds_gaps(y_true: np.ndarray, y_pred: np.ndarray, S: np.ndarray) -> Tuple[float, float, Tuple[float, float, float, float]]:
+def equalized_odds_gaps(
+    y_true: np.ndarray, y_pred: np.ndarray, S: np.ndarray
+) -> Tuple[float, float, Tuple[float, float, float, float]]:
     """Compute equalized odds gaps.
 
     Returns absolute differences in TPR and FPR between groups, along with
@@ -104,7 +130,9 @@ def fit_marginal_cp(proba_cal: np.ndarray, y_cal: np.ndarray, *, alpha_level: fl
     return {"alpha_level": alpha_level, "cal_sorted": cal_sorted, "variant": variant}
 
 
-def predict_marginal_cp(cp_obj: Dict[str, np.ndarray], proba_test: np.ndarray) -> Tuple[List[List[int]], np.ndarray]:
+def predict_marginal_cp(
+    cp_obj: Dict[str, np.ndarray], proba_test: np.ndarray
+) -> Tuple[List[List[int]], np.ndarray]:
     """Predict conformal sets for test probabilities using a marginal CP object."""
     cal_sorted = cp_obj["cal_sorted"]
     alpha_level = cp_obj["alpha_level"]
@@ -154,7 +182,9 @@ def fit_mondrian_cp(proba_cal: np.ndarray, y_cal: np.ndarray, S_cal: np.ndarray,
     }
 
 
-def predict_mondrian_cp(cp_obj: Dict[str, Dict], proba_test: np.ndarray, S_test: np.ndarray) -> Tuple[List[List[int]], np.ndarray]:
+def predict_mondrian_cp(
+    cp_obj: Dict[str, Dict], proba_test: np.ndarray, S_test: np.ndarray
+) -> Tuple[List[List[int]], np.ndarray]:
     """Predict conformal sets for test probabilities using a Mondrian CP object."""
     alpha_level = cp_obj["alpha_level"]
     cal_sorted_by_s = cp_obj["cal_sorted_by_s"]
@@ -191,7 +221,9 @@ def predict_mondrian_cp(cp_obj: Dict[str, Dict], proba_test: np.ndarray, S_test:
     return pred_sets, np.array(pvals)
 
 
-def evaluate_cp_sets(y_true: np.ndarray, S: np.ndarray, pred_sets: List[List[int]], name: str = "CP") -> Tuple[Dict[str, float], np.ndarray, np.ndarray]:
+def evaluate_cp_sets(
+    y_true: np.ndarray, S: np.ndarray, pred_sets: List[List[int]], name: str = "CP"
+) -> Tuple[Dict[str, float], np.ndarray, np.ndarray]:
     """Evaluate conformal prediction sets and compute fairness metrics on accepted predictions.
 
     Parameters
@@ -267,3 +299,177 @@ def evaluate_cp_sets(y_true: np.ndarray, S: np.ndarray, pred_sets: List[List[int
         "acc_on_accepted": acc_on_accepted,
     }
     return summary, accept_mask, point_pred
+
+
+def run_experiment_pipeline(
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    S_train: np.ndarray,
+    X_cal: np.ndarray,
+    y_cal: np.ndarray,
+    S_cal: np.ndarray,
+    X_test: np.ndarray,
+    y_test: np.ndarray,
+    S_test: np.ndarray,
+    experiment_name: str = "Experiment",
+    alpha_level: float = 0.10,
+    coverage_floor: float = 0.80
+) -> Dict[str, Dict]:
+    """Run the complete fairness-aware conformal prediction pipeline.
+
+    This function implements the standard workflow used across all experiments:
+    1. Train baseline logistic regression classifier
+    2. Compute baseline fairness metrics
+    3. Apply marginal conformal prediction
+    4. Apply Mondrian (group-conditional) conformal prediction
+    5. Search for tuned group-specific alpha values
+
+    Parameters
+    ----------
+    X_train, y_train, S_train : array-like
+        Training data features, labels, and sensitive attributes
+    X_cal, y_cal, S_cal : array-like
+        Calibration data for conformal prediction
+    X_test, y_test, S_test : array-like
+        Test data for evaluation
+    experiment_name : str, optional
+        Name of the experiment for reporting
+    alpha_level : float, optional
+        Default miscoverage level (default 0.10)
+    coverage_floor : float, optional
+        Minimum required coverage per group for tuned method (default 0.80)
+
+    Returns
+    -------
+    results : dict
+        Dictionary containing baseline_metrics, marg_summary, mond_summary,
+        and tuned_summary (if found)
+    """
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.metrics import accuracy_score, roc_auc_score
+
+    # Baseline classifier
+    clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, solver="lbfgs"))
+    clf.fit(X_train, y_train)
+    proba_test = clf.predict_proba(X_test)[:, 1]
+    pred_test = (proba_test >= 0.5).astype(int)
+
+    # Baseline fairness metrics
+    dp_gap, _, _ = demographic_parity_diff(pred_test, S_test)
+    eo_tpr_gap, eo_fpr_gap, _ = equalized_odds_gaps(y_test, pred_test, S_test)
+    eopp_gap, _ = equal_opportunity_gap(y_test, pred_test, S_test)
+    fnr_gap, _ = fnr_diff(y_test, pred_test, S_test)
+
+    baseline_metrics = {
+        "accuracy": accuracy_score(y_test, pred_test),
+        "roc_auc": roc_auc_score(y_test, proba_test),
+        "dp_gap": dp_gap,
+        "eo_tpr_gap": eo_tpr_gap,
+        "eo_fpr_gap": eo_fpr_gap,
+        "eopp_gap": eopp_gap,
+        "fnr_gap": fnr_gap,
+    }
+
+    # Calibration data
+    proba_cal = clf.predict_proba(X_cal)[:, 1]
+
+    # Marginal CP
+    cp_marg = fit_marginal_cp(proba_cal, y_cal, alpha_level=alpha_level, variant="plain")
+    marg_sets, _ = predict_marginal_cp(cp_marg, proba_test)
+    marg_summary, _, _ = evaluate_cp_sets(y_test, S_test, marg_sets, name=f"Marginal CP (α={alpha_level})")
+
+    # Mondrian CP
+    cp_mond = fit_mondrian_cp(proba_cal, y_cal, S_cal, alpha_level=alpha_level, variant="plain")
+    mond_sets, _ = predict_mondrian_cp(cp_mond, proba_test, S_test)
+    mond_summary, _, _ = evaluate_cp_sets(y_test, S_test, mond_sets, name=f"Mondrian CP (α={alpha_level})")
+
+    # Grid search for tuned alphas
+    tuned_summary = None
+    cal_sorted_by_s = cp_mond["cal_sorted_by_s"]
+    alpha_grid = np.round(np.linspace(0.05, 0.20, 16), 2)
+    best_row = None
+    best_score = None
+
+    for a0 in alpha_grid:
+        for a1 in alpha_grid:
+            pred_sets_tmp = []
+            for p, s in zip(proba_test, S_test):
+                cal_sorted = cal_sorted_by_s[int(s)]
+                a = a0 if s == 0 else a1
+                # Compute prediction set
+                p1 = float(np.clip(p, 1e-6, 1 - 1e-6))
+                p0 = 1.0 - p1
+                alpha_y1 = 1.0 - p1
+                alpha_y0 = 1.0 - p0
+                n_cal = len(cal_sorted)
+                idx_ge1 = np.searchsorted(cal_sorted, alpha_y1, side="left")
+                idx_ge0 = np.searchsorted(cal_sorted, alpha_y0, side="left")
+                n_ge1 = n_cal - idx_ge1
+                n_ge0 = n_cal - idx_ge0
+                pval1 = (1 + n_ge1) / (n_cal + 1)
+                pval0 = (1 + n_ge0) / (n_cal + 1)
+                sset = []
+                if pval0 > a:
+                    sset.append(0)
+                if pval1 > a:
+                    sset.append(1)
+                pred_sets_tmp.append(sset)
+
+            summary, _, _ = evaluate_cp_sets(y_test, S_test, pred_sets_tmp, name="tmp")
+            cov0 = summary["coverage_by_group"].get(0, 0)
+            cov1 = summary["coverage_by_group"].get(1, 0)
+
+            # Ensure coverage floor
+            if cov0 < coverage_floor or cov1 < coverage_floor:
+                continue
+
+            acc0 = summary["accept_rate_by_group"].get(0, 0)
+            acc1 = summary["accept_rate_by_group"].get(1, 0)
+            acc_gap = abs(acc0 - acc1)
+            dp_gap_tmp = summary["dp_gap_on_accepted"]
+            score = (acc_gap, dp_gap_tmp, -summary["coverage_overall"])
+
+            if best_score is None or score < best_score:
+                best_score = score
+                best_row = {
+                    "alpha0": a0,
+                    "alpha1": a1,
+                    "summary": summary,
+                }
+
+    if best_row is not None:
+        tuned_summary = best_row["summary"]
+
+    return {
+        "experiment_name": experiment_name,
+        "baseline_metrics": baseline_metrics,
+        "marg_summary": marg_summary,
+        "mond_summary": mond_summary,
+        "tuned_summary": tuned_summary,
+    }
+
+
+def print_experiment_results(results: Dict) -> None:
+    """Print experiment results in a standardized format.
+
+    Parameters
+    ----------
+    results : dict
+        Results dictionary from run_experiment_pipeline()
+    """
+    experiment_name = results["experiment_name"]
+    baseline_metrics = results["baseline_metrics"]
+    marg_summary = results["marg_summary"]
+    mond_summary = results["mond_summary"]
+    tuned_summary = results["tuned_summary"]
+
+    print(f"{experiment_name}")
+    print("Baseline metrics:", baseline_metrics)
+    print("Marginal CP summary:", marg_summary)
+    print("Mondrian CP summary:", mond_summary)
+    if tuned_summary is not None:
+        print("Tuned Mondrian CP summary:", tuned_summary)
+    else:
+        print("No tuned Mondrian CP found with desired coverage floor.")
